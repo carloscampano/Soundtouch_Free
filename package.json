@@ -1,0 +1,32 @@
+{
+  "name": "soundtouch-controller",
+  "version": "1.0.0",
+  "description": "Controller for Bose SoundTouch systems - Multi-room speaker management",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @soundtouch/web dev",
+    "dev:all": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "build:core": "pnpm --filter @soundtouch/core build",
+    "build:web": "pnpm --filter @soundtouch/web build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "discover": "pnpm --filter @soundtouch/core discover"
+  },
+  "keywords": [
+    "bose",
+    "soundtouch",
+    "multiroom",
+    "audio",
+    "speaker",
+    "controller"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-bose-950 text-white;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-bose-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bose-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-bose-600;
+  }
+}
+
+@layer components {
+  /* Volume slider custom styles */
+  input[type="range"] {
+    @apply bg-transparent;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    @apply h-2 rounded-full bg-bose-700;
+  }
+
+  input[type="range"]::-moz-range-track {
+    @apply h-2 rounded-full bg-bose-700;
+  }
+}
+
+@layer utilities {
+  /* Animation for playing indicator */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px theme('colors.green.500'),
+                  0 0 10px theme('colors.green.500');
+    }
+    50% {
+      box-shadow: 0 0 10px theme('colors.green.500'),
+                  0 0 20px theme('colors.green.500');
+    }
+  }
+
+  .playing-indicator {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}

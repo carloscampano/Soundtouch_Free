@@ -1,0 +1,35 @@
+{
+  "name": "@soundtouch/web",
+  "version": "1.0.0",
+  "description": "Web app for Bose SoundTouch controller",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"node server.js\"",
+    "dev:vite": "vite",
+    "dev:proxy": "node server.js",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@soundtouch/core": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7",
+    "lucide-react": "^0.303.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "http-proxy-middleware": "^2.0.6",
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.10"
+  }
+}

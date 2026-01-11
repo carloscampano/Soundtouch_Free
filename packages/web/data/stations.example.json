@@ -1,0 +1,14 @@
+{
+  "stations": [
+    {
+      "id": "station_example_1",
+      "name": "Example Radio Station",
+      "streamUrl": "http://stream.example.com:8000/live.mp3",
+      "imageUrl": "http://example.com/logo.png",
+      "type": "radio",
+      "category": "Music",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
