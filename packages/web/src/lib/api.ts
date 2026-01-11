@@ -167,6 +167,21 @@ export class ProxySoundTouchClient {
 
     const art = np.art as Record<string, unknown> | undefined;
 
+    // Parse time element: <time total="298">274</time>
+    let time: { current: number; total: number } | undefined;
+    const rawTime = np.time as Record<string, unknown> | undefined;
+    if (rawTime) {
+      const current = Number(getTextContent(rawTime)) || 0;
+      const total = Number(getAttribute(rawTime, 'total')) || 0;
+      if (total > 0) {
+        time = { current, total };
+      }
+    }
+
+    // Parse seekSupported: <seekSupported value="true" />
+    const rawSeek = np.seekSupported as Record<string, unknown> | undefined;
+    const seekSupported = rawSeek ? getAttribute(rawSeek, 'value') === 'true' : undefined;
+
     return {
       deviceID: getAttribute(np, 'deviceID') ?? '',
       source: getAttribute(np, 'source') ?? '',
@@ -180,6 +195,9 @@ export class ProxySoundTouchClient {
       playStatus: (getTextContent(np.playStatus) as any) || 'INVALID_PLAY_STATUS',
       shuffleSetting: getTextContent(np.shuffleSetting) || undefined,
       repeatSetting: getTextContent(np.repeatSetting) || undefined,
+      time,
+      seekSupported,
+      trackID: getTextContent(np.trackID) || undefined,
     };
   }
 

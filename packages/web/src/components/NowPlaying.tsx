@@ -12,13 +12,14 @@ import {
   Music,
   Mic2,
 } from 'lucide-react';
-import { useSelectedDevice, useDeviceState } from '../store';
+import { useSelectedDevice, useDeviceState, useStore } from '../store';
 import { useDeviceControl } from '../hooks/useDeviceControl';
 import { LyricsModal } from './LyricsModal';
 
 export function NowPlaying() {
   const selectedDevice = useSelectedDevice();
   const state = useDeviceState(selectedDevice?.id ?? null);
+  const refreshDeviceState = useStore((state) => state.refreshDeviceState);
   const {
     playPause,
     nextTrack,
@@ -60,6 +61,18 @@ export function NowPlaying() {
       return () => clearTimeout(timeout);
     }
   }, [pendingVolume]);
+
+  // Poll for time updates when lyrics modal is open and playing
+  useEffect(() => {
+    if (!showLyrics || !selectedDevice?.id) return;
+
+    // Poll every second for smoother karaoke sync
+    const interval = setInterval(() => {
+      refreshDeviceState(selectedDevice.id);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showLyrics, selectedDevice?.id, refreshDeviceState]);
 
   if (!selectedDevice || !nowPlaying) {
     return (
@@ -256,6 +269,7 @@ export function NowPlaying() {
         artist={nowPlaying.artist || null}
         album={nowPlaying.album}
         isPlaying={isPlaying}
+        deviceTime={nowPlaying.time}
       />
     </div>
   );

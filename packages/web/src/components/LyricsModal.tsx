@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Mic2,
-  Play,
-  Pause,
-  RotateCcw,
   Minus,
   Plus,
   AlertCircle,
   Loader2,
   Music2,
+  Radio,
 } from 'lucide-react';
 
 interface SyncedLyric {
@@ -36,6 +34,10 @@ interface LyricsModalProps {
   artist: string | null;
   album?: string | null;
   isPlaying: boolean;
+  deviceTime?: {
+    current: number; // seconds
+    total: number;   // seconds
+  };
 }
 
 const API_BASE = 'http://localhost:3001';
@@ -47,20 +49,22 @@ export function LyricsModal({
   artist,
   album,
   isPlaying,
+  deviceTime,
 }: LyricsModalProps) {
   const [lyrics, setLyrics] = useState<LyricsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Karaoke state
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isKaraokeRunning, setIsKaraokeRunning] = useState(false);
+  // Sync state
   const [offset, setOffset] = useState(0); // Manual sync offset in ms
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
 
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Convert device time (seconds) to milliseconds
+  const currentTimeMs = deviceTime ? deviceTime.current * 1000 : 0;
+  const totalTimeMs = deviceTime ? deviceTime.total * 1000 : 0;
 
   // Fetch lyrics when modal opens or track changes
   useEffect(() => {
@@ -69,22 +73,11 @@ export function LyricsModal({
     }
   }, [isOpen, track, artist]);
 
-  // Start/stop karaoke when playing state changes
+  // Update current line based on device time
   useEffect(() => {
-    if (isPlaying && lyrics?.hasSyncedLyrics && isOpen) {
-      startKaraoke();
-    } else {
-      stopKaraoke();
-    }
+    if (!lyrics?.syncedLyrics?.length || !deviceTime) return;
 
-    return () => stopKaraoke();
-  }, [isPlaying, lyrics?.hasSyncedLyrics, isOpen]);
-
-  // Update current line based on time
-  useEffect(() => {
-    if (!lyrics?.syncedLyrics?.length) return;
-
-    const adjustedTime = currentTime + offset;
+    const adjustedTime = currentTimeMs + offset;
     let newIndex = -1;
 
     for (let i = lyrics.syncedLyrics.length - 1; i >= 0; i--) {
@@ -98,7 +91,13 @@ export function LyricsModal({
       setCurrentLineIndex(newIndex);
       scrollToLine(newIndex);
     }
-  }, [currentTime, offset, lyrics?.syncedLyrics, currentLineIndex]);
+  }, [currentTimeMs, offset, lyrics?.syncedLyrics, currentLineIndex]);
+
+  // Reset state when track changes
+  useEffect(() => {
+    setCurrentLineIndex(-1);
+    setOffset(0);
+  }, [track, artist]);
 
   const fetchLyrics = async () => {
     if (!track || !artist) return;
@@ -106,7 +105,6 @@ export function LyricsModal({
     setIsLoading(true);
     setError(null);
     setLyrics(null);
-    setCurrentTime(0);
     setCurrentLineIndex(-1);
 
     try {
@@ -137,40 +135,6 @@ export function LyricsModal({
     }
   };
 
-  const startKaraoke = useCallback(() => {
-    if (intervalRef.current) return;
-
-    setIsKaraokeRunning(true);
-    const startTimestamp = Date.now() - currentTime;
-
-    intervalRef.current = setInterval(() => {
-      setCurrentTime(Date.now() - startTimestamp);
-    }, 100);
-  }, [currentTime]);
-
-  const stopKaraoke = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsKaraokeRunning(false);
-  }, []);
-
-  const toggleKaraoke = () => {
-    if (isKaraokeRunning) {
-      stopKaraoke();
-    } else {
-      startKaraoke();
-    }
-  };
-
-  const resetKaraoke = () => {
-    stopKaraoke();
-    setCurrentTime(0);
-    setCurrentLineIndex(-1);
-    scrollToLine(0);
-  };
-
   const adjustOffset = (delta: number) => {
     setOffset((prev) => prev + delta);
   };
@@ -184,20 +148,6 @@ export function LyricsModal({
     }
   };
 
-  const jumpToLine = (index: number) => {
-    if (lyrics?.syncedLyrics?.[index]) {
-      const newTime = lyrics.syncedLyrics[index].time - offset;
-      setCurrentTime(Math.max(0, newTime));
-      setCurrentLineIndex(index);
-
-      // Restart interval from new time
-      if (isKaraokeRunning) {
-        stopKaraoke();
-        setTimeout(() => startKaraoke(), 50);
-      }
-    }
-  };
-
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -206,6 +156,8 @@ export function LyricsModal({
   };
 
   if (!isOpen) return null;
+
+  const hasDeviceTime = deviceTime && deviceTime.total > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -272,13 +224,12 @@ export function LyricsModal({
                     <div
                       key={index}
                       ref={(el) => (lineRefs.current[index] = el)}
-                      onClick={() => jumpToLine(index)}
-                      className={`py-2 px-4 rounded-lg cursor-pointer transition-all duration-300 ${
+                      className={`py-2 px-4 rounded-lg transition-all duration-300 ${
                         index === currentLineIndex
                           ? 'bg-purple-600/30 text-white text-xl font-semibold scale-105'
                           : index < currentLineIndex
                           ? 'text-gray-500'
-                          : 'text-gray-300 hover:bg-bose-800'
+                          : 'text-gray-300'
                       }`}
                     >
                       <span className="text-xs text-gray-500 mr-3">
@@ -295,45 +246,39 @@ export function LyricsModal({
                 )}
               </div>
 
-              {/* Karaoke Controls */}
+              {/* Sync Controls */}
               {lyrics.hasSyncedLyrics && (
                 <div className="p-4 border-t border-bose-700 bg-bose-800/50">
                   <div className="flex items-center justify-between gap-4">
-                    {/* Playback Controls */}
+                    {/* Sync Status */}
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={resetKaraoke}
-                        className="p-2 rounded-lg hover:bg-bose-700 text-gray-400 hover:text-white transition-colors"
-                        title="Reiniciar"
-                      >
-                        <RotateCcw size={20} />
-                      </button>
-                      <button
-                        onClick={toggleKaraoke}
-                        className={`p-3 rounded-full transition-colors ${
-                          isKaraokeRunning
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-bose-700 text-gray-300 hover:bg-bose-600'
-                        }`}
-                        title={isKaraokeRunning ? 'Pausar' : 'Reproducir'}
-                      >
-                        {isKaraokeRunning ? <Pause size={20} /> : <Play size={20} />}
-                      </button>
+                      {hasDeviceTime ? (
+                        <>
+                          <Radio size={16} className={`${isPlaying ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
+                          <span className={`text-sm ${isPlaying ? 'text-green-400' : 'text-gray-500'}`}>
+                            {isPlaying ? 'Sincronizado' : 'Pausado'}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-yellow-500">
+                          Sin datos de tiempo
+                        </span>
+                      )}
                     </div>
 
                     {/* Time Display */}
                     <div className="text-center">
                       <div className="text-2xl font-mono text-white">
-                        {formatTime(currentTime)}
+                        {formatTime(currentTimeMs)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        / {formatTime((lyrics.duration || 0) * 1000)}
+                        / {formatTime(totalTimeMs || (lyrics.duration || 0) * 1000)}
                       </div>
                     </div>
 
                     {/* Sync Offset Controls */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">Sync:</span>
+                      <span className="text-xs text-gray-400">Ajuste:</span>
                       <button
                         onClick={() => adjustOffset(-500)}
                         className="p-1.5 rounded hover:bg-bose-700 text-gray-400 hover:text-white transition-colors"
@@ -357,11 +302,11 @@ export function LyricsModal({
                   {/* Progress Bar */}
                   <div className="mt-3 h-1 bg-bose-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-purple-500 transition-all duration-100"
+                      className={`h-full transition-all duration-100 ${isPlaying ? 'bg-purple-500' : 'bg-gray-600'}`}
                       style={{
                         width: `${Math.min(
                           100,
-                          (currentTime / ((lyrics.duration || 300) * 1000)) * 100
+                          (currentTimeMs / (totalTimeMs || (lyrics.duration || 300) * 1000)) * 100
                         )}%`,
                       }}
                     />
@@ -384,7 +329,7 @@ export function LyricsModal({
             >
               LRCLIB
             </a>
-            {' '}• Haz clic en una línea para saltar
+            {' '}• Sincronización automática con el dispositivo
           </p>
         </div>
       </div>

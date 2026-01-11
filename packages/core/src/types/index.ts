@@ -124,6 +124,13 @@ export interface NowPlaying {
   stationLocation?: string;
   shuffleSetting?: string;
   repeatSetting?: string;
+  // Playback time info (in seconds)
+  time?: {
+    current: number;  // Current position in seconds
+    total: number;    // Total duration in seconds
+  };
+  seekSupported?: boolean;
+  trackID?: string;
 }
 
 export interface Preset {
