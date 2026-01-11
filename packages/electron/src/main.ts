@@ -1,10 +1,19 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, dialog } from 'electron';
 import * as path from 'path';
 import { startServer, stopServer, getServerPort } from './server-manager';
 
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
+
+// Handle uncaught errors to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
 
 function getResourcePath(relativePath: string): string {
   if (isDev) {
@@ -26,15 +35,35 @@ async function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 15, y: 15 },
+    show: true, // Show immediately
     backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false, // Disable sandbox for preload to work
     },
+  });
+
+  // Show window when ready
+  mainWindow.once('ready-to-show', () => {
+    console.log('Window ready to show');
+    mainWindow?.show();
+  });
+
+  // Handle load errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Render process gone:', details);
+  });
+
+
+  // Log console messages from renderer
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer] ${message}`);
   });
 
   // Load the frontend
@@ -45,9 +74,10 @@ async function createWindow() {
   } else {
     // In production, load from built files
     const appPath = getResourcePath('app/index.html');
+    console.log('Loading app from:', appPath);
     mainWindow.loadFile(appPath, {
       query: { serverPort: String(serverPort) }
-    });
+    }).catch(err => console.error('Load error:', err));
   }
 
   // Open external links in browser
@@ -62,7 +92,9 @@ async function createWindow() {
 }
 
 // App lifecycle
-app.whenReady().then(createWindow);
+app.whenReady().then(createWindow).catch((error) => {
+  console.error('Error creating window:', error);
+});
 
 app.on('window-all-closed', () => {
   stopServer();
@@ -73,7 +105,9 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (mainWindow === null) {
-    createWindow();
+    createWindow().catch((error) => {
+      console.error('Error creating window on activate:', error);
+    });
   }
 });
 
