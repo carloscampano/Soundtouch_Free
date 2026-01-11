@@ -4,6 +4,29 @@
 
 > **Important**: Bose announced that SoundTouch cloud services will be discontinued on **May 6, 2026**. This project provides a local alternative that will continue working after the cloud shutdown.
 
+## Desktop App for macOS
+
+Download the native macOS application - no installation of Node.js required!
+
+### Download
+
+**[Download SoundTouch Controller v2.2.3](https://github.com/carloscampano/Soundtouch_Free/releases/tag/v2.2.3)** (Universal Binary)
+
+### System Requirements
+
+- **macOS 11.0 (Big Sur)** or later
+- **Intel Mac** or **Apple Silicon (M1/M2/M3)**
+- Bose SoundTouch speakers on the same network
+
+### Installation
+
+1. Download the `.dmg` file from [Releases](https://github.com/carloscampano/Soundtouch_Free/releases)
+2. Open the DMG and drag "SoundTouch Controller" to Applications
+3. Double-click to launch from the Applications folder
+4. On first launch, allow network access when prompted
+
+---
+
 ## Why This Project?
 
 Bose SoundTouch speakers rely on cloud services for streaming music from services like Spotify, Pandora, and TuneIn. When Bose shuts down these services, many features will stop working. This project provides:
@@ -55,7 +78,9 @@ Bose SoundTouch speakers rely on cloud services for streaming music from service
 └───────────────────────┘
 ```
 
-## Quick Start
+## Development Setup
+
+If you want to run from source or contribute to the project:
 
 ### Prerequisites
 
@@ -63,7 +88,7 @@ Bose SoundTouch speakers rely on cloud services for streaming music from service
 - pnpm (or npm/yarn)
 - Bose SoundTouch speakers on the same network
 
-### Installation
+### Running from Source
 
 ```bash
 # Clone the repository
@@ -82,7 +107,17 @@ The app will be available at:
 - **Frontend**: http://localhost:3000
 - **API/Proxy**: http://localhost:3001
 
-### Production Build
+### Building the macOS App
+
+```bash
+# Build everything
+cd packages/electron
+npm run package
+```
+
+The DMG will be created in `packages/electron/release/`
+
+### Web-only Production Build
 
 ```bash
 cd packages/web
@@ -103,15 +138,23 @@ soundtouch-controller/
 │   │   │   └── ws.ts        # WebSocket client
 │   │   └── package.json
 │   │
-│   └── web/                 # React frontend + proxy server
+│   ├── web/                 # React frontend + proxy server
+│   │   ├── src/
+│   │   │   ├── components/  # React components
+│   │   │   ├── hooks/       # Custom React hooks
+│   │   │   ├── store/       # Zustand state management
+│   │   │   └── App.tsx      # Main application
+│   │   ├── server.js        # Express proxy server
+│   │   ├── data/            # Persistent storage
+│   │   │   └── stations.json
+│   │   └── package.json
+│   │
+│   └── electron/            # macOS Desktop App
 │       ├── src/
-│       │   ├── components/  # React components
-│       │   ├── hooks/       # Custom React hooks
-│       │   ├── store/       # Zustand state management
-│       │   └── App.tsx      # Main application
-│       ├── server.js        # Express proxy server
-│       ├── data/            # Persistent storage
-│       │   └── stations.json
+│       │   ├── main.ts      # Electron main process
+│       │   ├── preload.ts   # Preload script
+│       │   └── server-manager.ts
+│       ├── scripts/         # Build scripts
 │       └── package.json
 │
 ├── docs/                    # Documentation
