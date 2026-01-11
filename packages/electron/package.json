@@ -1,6 +1,6 @@
 {
   "name": "@soundtouch/desktop",
-  "version": "2.1.1",
+  "version": "2.2.3",
   "description": "SoundTouch Controller Desktop App",
   "main": "dist/main.js",
   "author": "Carlos Campano",

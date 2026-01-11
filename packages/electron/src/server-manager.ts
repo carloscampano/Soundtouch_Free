@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
+import { fork, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as net from 'net';
 import { app } from 'electron';
@@ -59,14 +59,14 @@ export async function startServer(): Promise<void> {
   console.log(`Data path: ${dataPath}`);
 
   return new Promise((resolve, reject) => {
-    serverProcess = spawn('node', [serverPath], {
+    serverProcess = fork(serverPath, [], {
       env: {
         ...process.env,
         PORT: String(serverPort),
         DATA_DIR: dataPath,
         ELECTRON_RUN: 'true',
       },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     });
 
     serverProcess.stdout?.on('data', (data) => {

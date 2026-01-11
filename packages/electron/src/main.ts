@@ -1,11 +1,21 @@
-import { app, BrowserWindow, shell, screen } from 'electron';
+import { app, BrowserWindow, shell, Menu, globalShortcut } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { startServer, stopServer, getServerPort } from './server-manager';
+
+// Debug logging to file
+const logFile = path.join(app.getPath('userData'), 'debug.log');
+function debugLog(msg: string) {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${msg}\n`;
+  fs.appendFileSync(logFile, line);
+  console.log(msg);
+}
 
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.2.3';
 
 // Set About panel info
 app.setAboutPanelOptions({
@@ -36,25 +46,23 @@ function getResourcePath(relativePath: string): string {
 }
 
 async function createWindow() {
+  debugLog('createWindow: Starting server...');
   // Start the Express server first
   await startServer();
+  debugLog('createWindow: Server started');
   const serverPort = getServerPort();
+  debugLog(`createWindow: Server port = ${serverPort}`);
 
-  // Get primary display dimensions
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const windowWidth = 1200;
-  const windowHeight = 800;
+  debugLog('Creating BrowserWindow...');
 
   mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
+    width: 1200,
+    height: 800,
     minWidth: 900,
     minHeight: 600,
-    x: Math.floor((screenWidth - windowWidth) / 2),
-    y: Math.floor((screenHeight - windowHeight) / 2),
-    show: true,
+    show: false, // Don't show until ready
     backgroundColor: '#1a1a1a',
+    skipTaskbar: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -63,13 +71,17 @@ async function createWindow() {
     },
   });
 
-  console.log(`Window created at position: ${mainWindow.getPosition()}, size: ${mainWindow.getSize()}`);
+  // Center the window on screen
+  mainWindow.center();
+  debugLog(`Window created at position: ${mainWindow.getPosition()}, size: ${mainWindow.getSize()}`);
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
-    console.log('Window ready to show');
+    debugLog('EVENT: ready-to-show');
     if (mainWindow) {
+      debugLog('Calling mainWindow.show()');
       mainWindow.show();
+      debugLog(`After show - visible: ${mainWindow.isVisible()}`);
       mainWindow.focus();
       app.dock?.show();
     }
@@ -77,7 +89,7 @@ async function createWindow() {
 
   // Force show after content loads
   mainWindow.webContents.once('did-finish-load', () => {
-    console.log('Content loaded, ensuring window is visible');
+    debugLog('EVENT: did-finish-load');
     if (mainWindow) {
       // Force window to be visible on all workspaces temporarily
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -131,27 +143,78 @@ async function createWindow() {
   });
 }
 
-// App lifecycle
-app.whenReady().then(async () => {
-  // Force app to be active/focused on macOS
-  if (process.platform === 'darwin') {
-    app.dock?.bounce('critical');
-    app.focus({ steal: true });
-  }
-  await createWindow();
 
-  // Extra focus attempts after window is created
-  setTimeout(() => {
-    if (mainWindow) {
-      app.focus({ steal: true });
-      mainWindow.show();
-      mainWindow.focus();
-      mainWindow.moveTop();
+// Force show helper with logging
+function forceShowWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    debugLog(`forceShowWindow - visible=${mainWindow.isVisible()}, minimized=${mainWindow.isMinimized()}, focused=${mainWindow.isFocused()}`);
+
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
     }
-  }, 500);
-}).catch((error) => {
-  console.error('Error creating window:', error);
-});
+
+    app.focus({ steal: true });
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.moveTop();
+    mainWindow.setAlwaysOnTop(true);
+
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setAlwaysOnTop(false);
+      }
+    }, 200);
+  }
+}
+
+// Request single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('Another instance is running, quitting');
+  app.quit();
+} else {
+  // Handle second instance
+  app.on('second-instance', () => {
+    console.log('Second instance detected, showing window');
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      forceShowWindow();
+    }
+  });
+
+  // App lifecycle
+  app.whenReady().then(async () => {
+    debugLog(`App ready, platform: ${process.platform}, isPackaged: ${app.isPackaged}`);
+
+    // On macOS, ensure dock icon is visible and app is active
+    if (process.platform === 'darwin') {
+      debugLog('Showing dock...');
+      app.dock?.show();
+      debugLog('Bouncing dock...');
+      app.dock?.bounce('critical');
+    }
+
+    debugLog('Waiting 200ms...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    debugLog('Calling app.focus...');
+    app.focus({ steal: true });
+
+    debugLog('Calling createWindow...');
+    await createWindow();
+    debugLog('createWindow completed');
+
+    // Keep trying to show window for several seconds
+    const intervals = [100, 300, 600, 1000, 1500, 2000, 3000, 5000];
+    intervals.forEach(delay => {
+      setTimeout(forceShowWindow, delay);
+    });
+  }).catch((error) => {
+    debugLog(`ERROR in whenReady: ${error}`);
+    console.error('Error creating window:', error);
+  });
+}
 
 app.on('window-all-closed', () => {
   stopServer();
@@ -161,11 +224,111 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  console.log('Activate event triggered');
   if (mainWindow === null) {
     createWindow().catch((error) => {
       console.error('Error creating window on activate:', error);
     });
+  } else {
+    // Window exists but might be hidden - force show it
+    console.log('Forcing window show from activate');
+    forceShowWindow();
   }
+});
+
+// macOS dock menu and application menu
+if (process.platform === 'darwin') {
+  app.whenReady().then(() => {
+    // Dock menu
+    const dockMenu = Menu.buildFromTemplate([
+      {
+        label: 'Mostrar Ventana',
+        click: () => {
+          console.log('Dock menu: Show Window clicked');
+          if (mainWindow) {
+            forceShowWindow();
+          } else {
+            createWindow().catch(console.error);
+          }
+        }
+      },
+      {
+        label: 'Nueva Ventana',
+        click: () => {
+          console.log('Dock menu: New Window clicked');
+          if (mainWindow) {
+            mainWindow.close();
+          }
+          createWindow().catch(console.error);
+        }
+      }
+    ]);
+    app.dock?.setMenu(dockMenu);
+
+    // Application menu with Window menu
+    const appMenu = Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          {
+            label: 'Mostrar Ventana',
+            accelerator: 'CmdOrCtrl+Shift+W',
+            click: () => {
+              if (mainWindow) {
+                forceShowWindow();
+              } else {
+                createWindow().catch(console.error);
+              }
+            }
+          },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' }
+        ]
+      },
+      {
+        label: 'Window',
+        submenu: [
+          {
+            label: 'Mostrar Ventana Principal',
+            accelerator: 'CmdOrCtrl+1',
+            click: () => {
+              if (mainWindow) {
+                forceShowWindow();
+              } else {
+                createWindow().catch(console.error);
+              }
+            }
+          },
+          { type: 'separator' },
+          { role: 'minimize' },
+          { role: 'zoom' },
+          { type: 'separator' },
+          { role: 'front' }
+        ]
+      }
+    ]);
+    Menu.setApplicationMenu(appMenu);
+
+    // Global shortcut as backup
+    globalShortcut.register('CmdOrCtrl+Shift+S', () => {
+      console.log('Global shortcut triggered');
+      if (mainWindow) {
+        forceShowWindow();
+      } else {
+        createWindow().catch(console.error);
+      }
+    });
+  });
+}
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('before-quit', () => {
