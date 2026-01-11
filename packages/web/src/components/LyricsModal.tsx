@@ -40,7 +40,20 @@ interface LyricsModalProps {
   };
 }
 
-const API_BASE = 'http://localhost:3001';
+// Get API base URL - dynamic for Electron, static for web
+function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    return window.electronAPI.getApiBaseUrl();
+  }
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const port = params.get('serverPort');
+    if (port) return `http://localhost:${port}`;
+  }
+  return 'http://localhost:3001';
+}
+
+const API_BASE = getApiBaseUrl();
 
 export function LyricsModal({
   isOpen,

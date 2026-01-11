@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a1a"/>
+      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="480" fill="url(#bg)"/>
+
+  <!-- Sound wave bars - minimalist style -->
+  <g fill="none" stroke="#ffffff" stroke-width="48" stroke-linecap="round">
+    <!-- Left outer wave -->
+    <line x1="200" y1="380" x2="200" y2="644"/>
+
+    <!-- Left inner wave -->
+    <line x1="320" y1="280" x2="320" y2="744"/>
+
+    <!-- Center wave (tallest) -->
+    <line x1="440" y1="200" x2="440" y2="824"/>
+
+    <!-- Right inner wave -->
+    <line x1="560" y1="280" x2="560" y2="744"/>
+
+    <!-- Right wave -->
+    <line x1="680" y1="380" x2="680" y2="644"/>
+
+    <!-- Right outer wave -->
+    <line x1="800" y1="440" x2="800" y2="584"/>
+  </g>
+</svg>

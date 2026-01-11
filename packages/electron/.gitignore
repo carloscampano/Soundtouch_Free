@@ -1,0 +1,11 @@
+# Build output
+dist/
+release/
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+*.swp
+*.swo

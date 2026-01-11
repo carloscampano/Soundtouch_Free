@@ -1,5 +1,5 @@
 /**
- * Proxy-aware API client for browser
+ * Proxy-aware API client for browser and Electron
  */
 
 import {
@@ -15,7 +15,39 @@ import {
   buildXml,
 } from '@soundtouch/core';
 
-const PROXY_BASE = 'http://localhost:3001/api/device';
+// Electron API interface (exposed via preload)
+interface ElectronAPI {
+  serverPort: string;
+  getApiBaseUrl: () => string;
+  isElectron: boolean;
+  platform: string;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
+// Get API base URL - dynamic for Electron, static for web
+function getApiBaseUrl(): string {
+  // Check if running in Electron
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    return window.electronAPI.getApiBaseUrl();
+  }
+  // Check URL params (for Electron dev mode)
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const port = params.get('serverPort');
+    if (port) {
+      return `http://localhost:${port}`;
+    }
+  }
+  // Default for web development
+  return 'http://localhost:3001';
+}
+
+const getProxyBase = () => `${getApiBaseUrl()}/api/device`;
 const DEFAULT_TIMEOUT = 10000; // 10 seconds for slower operations
 
 // Helper functions for XML parsing
@@ -40,11 +72,9 @@ function getAttribute(node: unknown, attr: string): string | undefined {
 
 export class ProxySoundTouchClient {
   private baseUrl: string;
-  private deviceIp: string;
 
   constructor(deviceIp: string) {
-    this.deviceIp = deviceIp;
-    this.baseUrl = `${PROXY_BASE}/${deviceIp}`;
+    this.baseUrl = `${getProxyBase()}/${deviceIp}`;
   }
 
   private async request(method: 'GET' | 'POST', endpoint: string, body?: string): Promise<string> {
@@ -349,7 +379,7 @@ export class ProxySoundTouchClient {
 // Scan for devices through proxy
 export async function scanDevices(
   ips: string[],
-  onFound?: (device: { id: string; name: string; ip: string; type: string }) => void
+  onFound?: (device: { id: string; name: string; ip: string; port: number; type: string }) => void
 ): Promise<Array<{ id: string; name: string; ip: string; port: number; type: string }>> {
   const devices: Array<{ id: string; name: string; ip: string; port: number; type: string }> = [];
 

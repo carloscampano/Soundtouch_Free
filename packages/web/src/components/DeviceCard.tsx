@@ -1,6 +1,6 @@
 import { Volume2, VolumeX, Power, Radio } from 'lucide-react';
 import type { SoundTouchDevice } from '@soundtouch/core';
-import { useStore, useDeviceState } from '../store';
+import { useDeviceState } from '../store';
 import { useDeviceControl } from '../hooks/useDeviceControl';
 import { useZoneControl } from '../hooks/useZoneControl';
 

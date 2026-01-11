@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Users, Plus, X, Volume2 } from 'lucide-react';
-import { useStore, useDevices, useSelectedDevice, useDeviceState } from '../store';
+import { useDevices, useSelectedDevice, useDeviceState } from '../store';
 import { useZoneControl } from '../hooks/useZoneControl';
 
 export function ZoneManager() {
   const devices = useDevices();
   const selectedDevice = useSelectedDevice();
   const deviceState = useDeviceState(selectedDevice?.id ?? null);
-  const { createZone, playEverywhere, dissolveZone, addToZone, removeFromZone, getZoneInfo, setZoneVolume } =
+  const { createZone, playEverywhere, dissolveZone, removeFromZone, getZoneInfo, setZoneVolume } =
     useZoneControl();
 
   const [isCreatingZone, setIsCreatingZone] = useState(false);

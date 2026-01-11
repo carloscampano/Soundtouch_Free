@@ -97,7 +97,7 @@ export function useWebSocket() {
     });
 
     // Cleanup connections for removed devices
-    connectionsRef.current.forEach((connection, deviceId) => {
+    connectionsRef.current.forEach((_, deviceId) => {
       if (!devices.find(d => d.id === deviceId)) {
         disconnectDevice(deviceId);
       }

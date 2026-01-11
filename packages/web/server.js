@@ -14,11 +14,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+
+// Support configurable port and data directory (for Electron)
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const DEVICE_TIMEOUT = 8000;
 
-// Data file for custom stations
-const DATA_DIR = join(__dirname, 'data');
+// Data file for custom stations (configurable for Electron)
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, 'data');
 const DATA_FILE = join(DATA_DIR, 'stations.json');
 
 // Ensure data directory exists
