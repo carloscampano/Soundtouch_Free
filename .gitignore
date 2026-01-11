@@ -36,6 +36,5 @@ tmp/
 temp/
 *.tmp
 
-# Data files (keep structure, ignore content)
-packages/web/data/*.json
-!packages/web/data/.gitkeep
+# Data files (keep structure, ignore user data)
+packages/web/data/stations.json

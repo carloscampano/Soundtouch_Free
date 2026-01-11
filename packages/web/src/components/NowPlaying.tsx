@@ -10,9 +10,11 @@ import {
   Repeat,
   Repeat1,
   Music,
+  Mic2,
 } from 'lucide-react';
 import { useSelectedDevice, useDeviceState } from '../store';
 import { useDeviceControl } from '../hooks/useDeviceControl';
+import { LyricsModal } from './LyricsModal';
 
 export function NowPlaying() {
   const selectedDevice = useSelectedDevice();
@@ -36,6 +38,7 @@ export function NowPlaying() {
   const [localVolume, setLocalVolume] = useState(deviceVolume);
   const [isDragging, setIsDragging] = useState(false);
   const [pendingVolume, setPendingVolume] = useState<number | null>(null);
+  const [showLyrics, setShowLyrics] = useState(false);
 
   // Sync local volume with device volume when not dragging and no pending update
   useEffect(() => {
@@ -141,6 +144,16 @@ export function NowPlaying() {
         {nowPlaying.album && (
           <p className="text-sm text-gray-500 truncate">{nowPlaying.album}</p>
         )}
+        {/* Lyrics Button */}
+        {nowPlaying.track && nowPlaying.artist && !isStandby && (
+          <button
+            onClick={() => setShowLyrics(true)}
+            className="mt-3 px-4 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-full text-sm transition-colors inline-flex items-center gap-2"
+          >
+            <Mic2 size={16} />
+            Karaoke
+          </button>
+        )}
       </div>
 
       {/* Playback Controls */}
@@ -234,6 +247,16 @@ export function NowPlaying() {
 
         <span className="text-sm text-gray-400 w-10 text-right">{localVolume}%</span>
       </div>
+
+      {/* Lyrics Modal */}
+      <LyricsModal
+        isOpen={showLyrics}
+        onClose={() => setShowLyrics(false)}
+        track={nowPlaying.track || null}
+        artist={nowPlaying.artist || null}
+        album={nowPlaying.album}
+        isPlaying={isPlaying}
+      />
     </div>
   );
 }

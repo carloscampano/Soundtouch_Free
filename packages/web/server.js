@@ -318,6 +318,105 @@ app.all('/api/device/:ip/*', async (req, res) => {
 });
 
 // ============================================================
+// LYRICS API (LRCLIB)
+// ============================================================
+
+// Cache for lyrics to avoid repeated requests
+const lyricsCache = new Map();
+const LYRICS_CACHE_TTL = 3600000; // 1 hour
+
+// Search for synced lyrics
+app.get('/api/lyrics/search', async (req, res) => {
+  const { track, artist, album, duration } = req.query;
+
+  if (!track || !artist) {
+    return res.status(400).json({ error: 'track and artist are required' });
+  }
+
+  // Check cache
+  const cacheKey = `${artist}-${track}`.toLowerCase();
+  const cached = lyricsCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < LYRICS_CACHE_TTL) {
+    return res.json(cached.data);
+  }
+
+  try {
+    // Build query params for LRCLIB
+    const params = new URLSearchParams({
+      track_name: track,
+      artist_name: artist,
+    });
+    if (album) params.append('album_name', album);
+    if (duration) params.append('duration', duration);
+
+    const response = await fetch(`https://lrclib.net/api/get?${params}`, {
+      headers: {
+        'User-Agent': 'SoundTouch-Free/1.0.0 (https://github.com/carloscampano/Soundtouch_Free)'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return res.status(404).json({ error: 'Lyrics not found' });
+      }
+      throw new Error(`LRCLIB API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Parse synced lyrics into array format
+    let syncedLyrics = [];
+    if (data.syncedLyrics) {
+      syncedLyrics = parseLRC(data.syncedLyrics);
+    }
+
+    const result = {
+      id: data.id,
+      track: data.trackName,
+      artist: data.artistName,
+      album: data.albumName,
+      duration: data.duration,
+      instrumental: data.instrumental,
+      plainLyrics: data.plainLyrics,
+      syncedLyrics: syncedLyrics,
+      hasSyncedLyrics: syncedLyrics.length > 0
+    };
+
+    // Cache the result
+    lyricsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Lyrics fetch error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch lyrics', message: error.message });
+  }
+});
+
+// Parse LRC format into array of {time, text}
+function parseLRC(lrcString) {
+  const lines = lrcString.split('\n');
+  const lyrics = [];
+
+  for (const line of lines) {
+    // Match [mm:ss.xx] or [mm:ss] format
+    const match = line.match(/^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)$/);
+    if (match) {
+      const minutes = parseInt(match[1], 10);
+      const seconds = parseInt(match[2], 10);
+      const milliseconds = match[3] ? parseInt(match[3].padEnd(3, '0'), 10) : 0;
+      const time = minutes * 60000 + seconds * 1000 + milliseconds;
+      const text = match[4].trim();
+
+      if (text) {
+        lyrics.push({ time, text });
+      }
+    }
+  }
+
+  return lyrics.sort((a, b) => a.time - b.time);
+}
+
+// ============================================================
 // UTILITIES & SERVER START
 // ============================================================
 
