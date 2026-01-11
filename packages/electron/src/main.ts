@@ -1,10 +1,20 @@
-import { app, BrowserWindow, shell, dialog } from 'electron';
+import { app, BrowserWindow, shell, screen } from 'electron';
 import * as path from 'path';
 import { startServer, stopServer, getServerPort } from './server-manager';
 
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
+const APP_VERSION = '2.1.1';
+
+// Set About panel info
+app.setAboutPanelOptions({
+  applicationName: 'SoundTouch Controller',
+  applicationVersion: APP_VERSION,
+  version: `Electron ${process.versions.electron}`,
+  copyright: '© 2024 Carlos Campano',
+  credits: 'Control your Bose SoundTouch devices',
+});
 
 // Handle uncaught errors to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -30,25 +40,55 @@ async function createWindow() {
   await startServer();
   const serverPort = getServerPort();
 
+  // Get primary display dimensions
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  const windowWidth = 1200;
+  const windowHeight = 800;
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: windowWidth,
+    height: windowHeight,
     minWidth: 900,
     minHeight: 600,
-    show: true, // Show immediately
+    x: Math.floor((screenWidth - windowWidth) / 2),
+    y: Math.floor((screenHeight - windowHeight) / 2),
+    show: true,
     backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // Disable sandbox for preload to work
+      sandbox: false,
     },
   });
+
+  console.log(`Window created at position: ${mainWindow.getPosition()}, size: ${mainWindow.getSize()}`);
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     console.log('Window ready to show');
-    mainWindow?.show();
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+      app.dock?.show();
+    }
+  });
+
+  // Force show after content loads
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('Content loaded, ensuring window is visible');
+    if (mainWindow) {
+      // Force window to be visible on all workspaces temporarily
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.moveTop();
+      // Then reset to normal
+      setTimeout(() => {
+        mainWindow?.setVisibleOnAllWorkspaces(false);
+      }, 100);
+    }
   });
 
   // Handle load errors
@@ -92,7 +132,24 @@ async function createWindow() {
 }
 
 // App lifecycle
-app.whenReady().then(createWindow).catch((error) => {
+app.whenReady().then(async () => {
+  // Force app to be active/focused on macOS
+  if (process.platform === 'darwin') {
+    app.dock?.bounce('critical');
+    app.focus({ steal: true });
+  }
+  await createWindow();
+
+  // Extra focus attempts after window is created
+  setTimeout(() => {
+    if (mainWindow) {
+      app.focus({ steal: true });
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.moveTop();
+    }
+  }, 500);
+}).catch((error) => {
   console.error('Error creating window:', error);
 });
 
